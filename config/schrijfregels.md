@@ -2,6 +2,8 @@
 
 Gedestilleerd uit twee skills: `anti-ai-writing` (zorgt dat de tekst niet als AI leest) en `storytelling` (zorgt dat een verhaal wordt uitgelezen). Deze regels gaan boven stijlvoorkeuren: een post die hier doorheen valt, publiceren we niet.
 
+**Verhouding tot de stijlgids:** `config/style-guide.md` is de definitieve stem van Janine en is leidend. Dit bestand is de ambachtelijke laag eronder. Spreken ze elkaar tegen, dan wint de stijlgids.
+
 ---
 
 ## Deel 1 — Niet als AI klinken
@@ -74,7 +76,7 @@ Verboden werkwoorden: verankeren, verweven, gelaagd, distilleren, uitpakken, kri
 
 ## Deel 2 — Een verhaal dat wordt uitgelezen
 
-Geldt vooral voor pijler 1 (ondernemerschap) en pijler 3 (trainee-ervaringen), maar de ritme-regel geldt overal.
+Geldt vooral voor subagent 1 (Janine persoonlijk) en subagent 4 (trainee-ontwikkeling), maar de ritme-regel geldt overal.
 
 ### De motor: "maar" of "dus", nooit "en toen"
 

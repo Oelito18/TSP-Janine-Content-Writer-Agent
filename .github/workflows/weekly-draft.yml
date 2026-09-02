@@ -1,0 +1,88 @@
+name: Wekelijks concept
+
+# Posten is event-gedreven (config/content-principe.md). Deze workflow is de
+# wekelijkse aanslinger: hij vraagt de agent of er een aanleiding is. Is die er
+# niet, dan geeft generate_draft.py "GEEN POST" terug en wordt er niets gemaild.
+#
+# Twee tijdstippen staan klaar zodat we kunnen vergelijken welk moment beter
+# werkt. Er draait er telkens maar één: zet de repositoryvariabele POST_SLOT
+# (Settings > Secrets and variables > Actions > Variables) op "vroeg" of "laat".
+#
+#   vroeg -> 06:00 UTC = 08:00 NL zomertijd (07:00 NL wintertijd)
+#   laat  -> 09:45 UTC = 11:45 NL zomertijd (10:45 NL wintertijd)
+#
+# GitHub-cron kent geen tijdzones. Wil je in de winter exact 08:00 en 11:45
+# lokaal, verschuif dan beide crons een uur (07:00 en 10:45 UTC).
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+    - cron: "45 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  concept:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Draait dit tijdstip?
+        id: slot
+        env:
+          POST_SLOT: ${{ vars.POST_SLOT }}
+          GEPLAND: ${{ github.event.schedule }}
+        run: |
+          slot="${POST_SLOT:-vroeg}"
+          if [ -z "$GEPLAND" ]; then
+            echo "Handmatig gestart."
+            echo "draaien=ja" >> "$GITHUB_OUTPUT"
+          elif [ "$slot" = "laat" ] && [ "$GEPLAND" = "45 9 * * 1" ]; then
+            echo "draaien=ja" >> "$GITHUB_OUTPUT"
+          elif [ "$slot" = "vroeg" ] && [ "$GEPLAND" = "0 6 * * 1" ]; then
+            echo "draaien=ja" >> "$GITHUB_OUTPUT"
+          else
+            echo "POST_SLOT is '$slot'; deze cron ($GEPLAND) slaan we over."
+            echo "draaien=nee" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.slot.outputs.draaien == 'ja'
+
+      - uses: actions/setup-python@v5
+        if: steps.slot.outputs.draaien == 'ja'
+        with:
+          python-version: "3.12"
+
+      - name: Installeer dependencies
+        if: steps.slot.outputs.draaien == 'ja'
+        run: pip install -r requirements.txt
+
+      - name: Genereer concept
+        id: concept
+        if: steps.slot.outputs.draaien == 'ja'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_MODEL: ${{ vars.CLAUDE_MODEL }}
+        run: python src/generate_draft.py
+
+      - name: Commit het concept
+        if: steps.slot.outputs.draaien == 'ja' && steps.concept.outputs.geen_post == 'nee'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/drafts
+          git commit -m "Concept ${{ steps.concept.outputs.draft_path }}"
+          git push
+
+      - name: Mail het concept
+        if: steps.slot.outputs.draaien == 'ja' && steps.concept.outputs.geen_post == 'nee'
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          APPROVER_EMAILS: ${{ secrets.APPROVER_EMAILS }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+        run: python src/send_email.py "${{ steps.concept.outputs.draft_path }}"
+
+      - name: Geen aanleiding
+        if: steps.slot.outputs.draaien == 'ja' && steps.concept.outputs.geen_post == 'ja'
+        run: echo "Geen post deze week. Dat is een prima uitkomst."
